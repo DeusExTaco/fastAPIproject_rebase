@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    @apply w-screen h-screen m-0 p-0 overflow-hidden;
+  }
+}
+
+body {
+  position: relative;
+  display: flex;
+}
+
+#root {
+  display: flex;
+  flex: 1;
+}
