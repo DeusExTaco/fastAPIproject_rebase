@@ -2,7 +2,7 @@
 from typing import List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from config import get_settings
+from ..config import get_settings
 
 
 def setup_cors(app: FastAPI) -> None:
@@ -20,6 +20,7 @@ def setup_cors(app: FastAPI) -> None:
             "http://localhost:3000",  # Common React port
             "http://127.0.0.1:5173",
             "http://127.0.0.1:3000",
+            "http://localhost:8000",
         ]
     )
 
@@ -45,7 +46,7 @@ def setup_cors(app: FastAPI) -> None:
         "X-RateLimit-Reset",
     ]
 
-    # Add custom headers from settings if they exist
+    # Add common headers from settings if they exist
     if settings.cors_headers_list != ["*"]:
         security_headers.extend(settings.cors_headers_list)
 

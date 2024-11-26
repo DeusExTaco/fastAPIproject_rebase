@@ -1,17 +1,18 @@
 # backend/main.py
-
 import logging
-from typing import Optional, Dict, Any
+from typing import Any
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from config import get_settings
+from app.config import get_settings
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.middleware.cors_middleware import setup_cors
 from app.api.v1.routes.user_routes import router as user_router
-from app.api.v1.routes.user_profile_routes import router as profile_router
-from app.api.v1.routes.user_preferences_routes import router as preferences_router
+from app.api.v1.routes.profile_routes import router as profile_router
 from app.api.v1.routes.auth_routes import router as auth_router
+from app.db.init_db import init_db
+
 
 ua = "uvicorn.access"
 
@@ -37,10 +38,37 @@ root_logger.setLevel(getattr(logging, settings.LOG_LEVEL))
 # Application logger
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """
+    Lifespan context manager for the FastAPI application.
+    Handles startup and shutdown events.
+    """
+    # Startup
+    try:
+        logger.info("Starting up application...")
+        logger.info("Initializing database...")
+        init_db()
+        logger.info("Database initialization completed successfully")
+        yield
+    except Exception as e:
+        logger.error(f"Startup failed: {str(e)}")
+        if not settings.DEBUG:
+            logger.critical("Application startup failed in production - shutting down")
+            raise
+        yield
+    finally:
+        # Shutdown
+        logger.info("Shutting down application...")
+
+
+# Initialize FastAPI with lifespan
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.PROJECT_DESCRIPTION,
-    version=settings.API_VERSION
+    version=settings.API_VERSION,
+    lifespan=lifespan
 )
 
 
@@ -60,6 +88,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 }
             )
 
+
 # Configure CORS
 setup_cors(app)
 
@@ -69,7 +98,6 @@ setup_cors(app)
 app.add_middleware(ErrorHandlingMiddleware)
 
 
-# Include auth routes
 app.include_router(
     auth_router,
     prefix="/api/auth",
@@ -78,7 +106,7 @@ app.include_router(
 
 app.include_router(
     user_router,
-    prefix="/api/users",
+    prefix="/api/user",
     tags=["User Management"]
 )
 
@@ -88,22 +116,30 @@ app.include_router(
     tags=["User Profile"]
 )
 
-app.include_router(
-    preferences_router,
-    prefix="/api",
-    tags=["User Preferences"]
-)
 
 # Public Health Check Endpoint
 @app.get("/api/health", tags=["Health"])
 async def health_check():
-
-    return {
-        "status": "healthy",
-        "version": settings.API_VERSION,
-        "debug_mode": settings.DEBUG,
-        "environment": settings.ENVIRONMENT,
-    }
+    """Health check endpoint to verify service status"""
+    try:
+        return {
+            "status": "healthy",
+            "version": settings.API_VERSION,
+            "debug_mode": settings.DEBUG,
+            "environment": settings.ENVIRONMENT,
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "version": settings.API_VERSION,
+                "debug_mode": settings.DEBUG,
+                "environment": settings.ENVIRONMENT,
+                "error": str(e) if settings.DEBUG else "Service unavailable"
+            }
+        )
 
 
 if __name__ == "__main__":

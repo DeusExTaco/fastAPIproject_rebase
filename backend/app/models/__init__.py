@@ -1,14 +1,7 @@
-# backend/models/__init__.py
-from app.models.user_preferences_model import UserPreferences
+# backend/app/models/__init__.py
+from .base import TimeStampedModel
+from .user import User
+from .role import Role, RoleType
+from .profile import UserProfile
 
-
-# List all models for easy import
-__all__ = [
-    'User',
-    'UserRole',
-    'UserStatus',
-    'UserAddress',
-    'UserProfile',
-    'ServerPerformance',
-    'UserPreferences'
-]
+__all__ = ["TimeStampedModel", "User", "Role", "RoleType", "UserProfile"]
